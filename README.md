@@ -1,2 +1,2 @@
 # UniRuta
-Mandao - Equipo 5 - Bavaria
+UniRuta - Equipo 5 - Bavaria
