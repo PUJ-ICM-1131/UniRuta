@@ -1,6 +1,10 @@
 package com.uniruta.app.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.uniruta.app.UniRutaApplication
 import com.uniruta.app.data.mock.MockAdminData
 import com.uniruta.app.data.model.DigitalPass
 import com.uniruta.app.data.model.PassStatus
@@ -17,6 +21,8 @@ import com.uniruta.app.data.model.TripPassenger
 import com.uniruta.app.data.model.TripStatus
 import com.uniruta.app.data.model.Vehicle
 import com.uniruta.app.data.model.VehicleStatus
+import com.uniruta.app.notifications.AppNotifier
+import com.uniruta.app.notifications.NotificationMessages
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -67,11 +73,19 @@ data class AdminUiState(
 
     fun tripBy(id: String): Trip? = trips.firstOrNull { it.id == id }
 
+    val hasScenarioChanges: Boolean
+        get() = routes != MockAdminData.routes ||
+            vehicles != MockAdminData.vehicles ||
+            trips != MockAdminData.trips ||
+            passengers != MockAdminData.passengers
+
     fun paymentEntryBy(paymentId: String?): TripPassenger? =
         passengers.firstOrNull { it.payment.id == paymentId }
 }
 
-class AdminViewModel : ViewModel() {
+class AdminViewModel(
+    private val notifier: AppNotifier = AppNotifier.None
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(initialState())
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
@@ -99,7 +113,14 @@ class AdminViewModel : ViewModel() {
         val existing = _uiState.value.routeBy(routeId)
         val id = existing?.id ?: "route-mock-${++routeSequence + 100}"
         val stops = cleanStops.mapIndexed { index, stopName ->
-            Stop(id = "$id-stop-${index + 1}", name = stopName, order = index + 1)
+            Stop(
+                id = "$id-stop-${index + 1}",
+                name = stopName,
+                order = index + 1,
+                location = existing?.stops
+                    ?.firstOrNull { it.name.equals(stopName, ignoreCase = true) }
+                    ?.location
+            )
         }
         val route = Route(
             id = id,
@@ -239,6 +260,13 @@ class AdminViewModel : ViewModel() {
                 pass = pass
             )
         }
+        notifier.notify(
+            NotificationMessages.paymentApproved(
+                paymentId = paymentId,
+                reservationId = entry.reservation.id,
+                trip = _uiState.value.tripBy(entry.tripId)
+            )
+        )
     }
 
     fun rejectPayment(paymentId: String, reason: RejectionReason) {
@@ -255,6 +283,7 @@ class AdminViewModel : ViewModel() {
                 )
             )
         }
+        notifier.notify(NotificationMessages.paymentRejected(paymentId, entry.reservation.id, reason))
     }
 
     fun reset() {
@@ -281,4 +310,14 @@ class AdminViewModel : ViewModel() {
         trips = MockAdminData.trips,
         passengers = MockAdminData.passengers
     )
+
+    companion object {
+        val Factory: ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
+                    as UniRutaApplication
+                AdminViewModel(notifier = application.container.notifier)
+            }
+        }
+    }
 }

@@ -16,5 +16,6 @@ data class Incident(
     val type: IncidentType,
     val description: String,
     val evidenceName: String?,
-    val reportedAt: LocalTime
+    val reportedAt: LocalTime,
+    val evidencePath: String? = null
 )

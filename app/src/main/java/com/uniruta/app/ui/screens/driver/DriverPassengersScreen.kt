@@ -1,25 +1,18 @@
 package com.uniruta.app.ui.screens.driver
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,14 +20,28 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.uniruta.app.data.model.TripPassenger
+import com.uniruta.app.ui.components.CardDivider
+import com.uniruta.app.ui.components.ChipRow
+import com.uniruta.app.ui.components.EmptyState
+import com.uniruta.app.ui.components.InitialsAvatar
+import com.uniruta.app.ui.components.LinkButton
+import com.uniruta.app.ui.components.MetaItem
+import com.uniruta.app.ui.components.PrimaryButton
+import com.uniruta.app.ui.components.ProgressTrack
+import com.uniruta.app.ui.components.SecondaryButton
 import com.uniruta.app.ui.components.StatusChip
 import com.uniruta.app.ui.components.StatusTone
-import com.uniruta.app.ui.components.UniRutaTopBar
+import com.uniruta.app.ui.components.UniRutaCard
+import com.uniruta.app.ui.components.UniRutaScreen
+import com.uniruta.app.ui.components.icon
 import com.uniruta.app.ui.components.tone
 import com.uniruta.app.ui.format.asPriceText
+import com.uniruta.app.ui.theme.PriceStyle
+import com.uniruta.app.ui.theme.TotalStyle
+import com.uniruta.app.ui.theme.UniRutaIcons
+import com.uniruta.app.ui.theme.UniRutaTheme
 
 @Composable
 fun DriverPassengersScreen(
@@ -45,46 +52,48 @@ fun DriverPassengersScreen(
     modifier: Modifier = Modifier
 ) {
     var cashDialogFor by rememberSaveable { mutableStateOf<String?>(null) }
+    val boarded = passengers.count { it.hasBoarded }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = { UniRutaTopBar(title = "Pasajeros", onBack = onBack) }
-    ) { innerPadding ->
+    UniRutaScreen(
+        title = "Pasajeros",
+        onBack = onBack,
+        modifier = modifier
+    ) {
         if (passengers.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Este recorrido todavía no tiene pasajeros registrados.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-            }
-            return@Scaffold
+            EmptyState(icon = UniRutaIcons.Users, message = "Este recorrido todavía no tiene pasajeros registrados.")
+            return@UniRutaScreen
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = innerPadding.calculateTopPadding() + 16.dp,
-                bottom = innerPadding.calculateBottomPadding() + 24.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            items(passengers, key = { it.reservation.id }) { passenger ->
-                PassengerCard(
-                    passenger = passenger,
-                    onConfirmCash = { cashDialogFor = passenger.reservation.id },
-                    onRegisterBoarding = { onRegisterBoarding(passenger.reservation.id) }
+            Row(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "Abordados", style = MaterialTheme.typography.bodySmall)
+                    Text(text = "$boarded de ${passengers.size}", style = TotalStyle)
+                }
+                ProgressTrack(
+                    fraction = boarded.toFloat() / passengers.size,
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.width(140.dp)
                 )
             }
+        }
+
+        passengers.forEach { passenger ->
+            PassengerCard(
+                passenger = passenger,
+                onConfirmCash = { cashDialogFor = passenger.reservation.id },
+                onRegisterBoarding = { onRegisterBoarding(passenger.reservation.id) }
+            )
         }
     }
 
@@ -92,28 +101,19 @@ fun DriverPassengersScreen(
     if (pendingReservationId != null) {
         AlertDialog(
             onDismissRequest = { cashDialogFor = null },
+            icon = { Icon(imageVector = UniRutaIcons.Cash, contentDescription = null) },
             title = { Text(text = "Confirmar pago en efectivo") },
-            text = {
-                Text(
-                    text = "Confirma que recibiste el pago en efectivo del estudiante antes de " +
-                        "registrar su abordaje."
-                )
-            },
+            text = { Text(text = "Confirma que recibiste el pago en efectivo del estudiante antes de registrar su abordaje.") },
             confirmButton = {
-                TextButton(
+                LinkButton(
+                    text = "Confirmar",
                     onClick = {
                         onConfirmCashPayment(pendingReservationId)
                         cashDialogFor = null
                     }
-                ) {
-                    Text(text = "Confirmar")
-                }
+                )
             },
-            dismissButton = {
-                TextButton(onClick = { cashDialogFor = null }) {
-                    Text(text = "Cancelar")
-                }
-            }
+            dismissButton = { LinkButton(text = "Cancelar", onClick = { cashDialogFor = null }) }
         )
     }
 }
@@ -124,83 +124,46 @@ private fun PassengerCard(
     onConfirmCash: () -> Unit,
     onRegisterBoarding: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+    UniRutaCard(
+        borderColor = if (passenger.awaitsCashOnBoarding) UniRutaTheme.colors.warningBorder else MaterialTheme.colorScheme.outlineVariant,
+        contentPadding = PaddingValues(16.dp),
+        verticalSpacing = 12.dp
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = passenger.studentName,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
-                )
-                StatusChip(
-                    label = if (passenger.hasBoarded) "Abordó" else "Sin abordar",
-                    tone = if (passenger.hasBoarded) StatusTone.POSITIVE else StatusTone.NEUTRAL
-                )
-            }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                StatusChip(
-                    label = "Reserva: ${passenger.reservation.status.label}",
-                    tone = passenger.reservation.status.tone()
-                )
-                StatusChip(
-                    label = "Pago: ${passenger.payment.status.label}",
-                    tone = passenger.payment.status.tone()
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = passenger.payment.method.label,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = passenger.payment.amount.asPriceText(),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            if (passenger.awaitsCashOnBoarding) {
-                Button(
-                    onClick = onConfirmCash,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                ) {
-                    Text(text = "Confirmar pago al abordar")
-                }
-            } else if (passenger.canRegisterBoarding) {
-                OutlinedButton(
-                    onClick = onRegisterBoarding,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                ) {
-                    Text(text = "Registrar abordaje")
-                }
-            }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            InitialsAvatar(
+                name = passenger.studentName,
+                tone = if (passenger.hasBoarded) StatusTone.POSITIVE else StatusTone.WARNING
+            )
+            Text(text = passenger.studentName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            StatusChip(
+                label = if (passenger.hasBoarded) "Abordó" else "Sin abordar",
+                tone = if (passenger.hasBoarded) StatusTone.POSITIVE else StatusTone.WARNING
+            )
+        }
+        ChipRow {
+            StatusChip(label = "Reserva: ${passenger.reservation.status.label}", tone = passenger.reservation.status.tone())
+            StatusChip(label = "Pago: ${passenger.payment.status.label}", tone = passenger.payment.status.tone())
+        }
+        CardDivider()
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MetaItem(
+                icon = passenger.payment.method.icon(),
+                text = passenger.payment.method.label,
+                modifier = Modifier.weight(1f)
+            )
+            Text(text = passenger.payment.amount.asPriceText(), style = PriceStyle, color = MaterialTheme.colorScheme.primary)
+        }
+        when {
+            passenger.awaitsCashOnBoarding -> PrimaryButton(
+                text = "Confirmar pago al abordar",
+                onClick = onConfirmCash,
+                icon = UniRutaIcons.Cash
+            )
+            passenger.canRegisterBoarding -> SecondaryButton(
+                text = "Registrar abordaje",
+                onClick = onRegisterBoarding,
+                icon = UniRutaIcons.UserCheck
+            )
         }
     }
 }

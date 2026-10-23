@@ -1,247 +1,170 @@
 package com.uniruta.app.ui.screens.driver
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.uniruta.app.data.model.Trip
 import com.uniruta.app.data.model.TripStatus
-import com.uniruta.app.ui.components.InfoRow
-import com.uniruta.app.ui.components.RoutePreview
+import com.uniruta.app.data.routing.RoutePathState
+import com.uniruta.app.ui.components.InfoGrid
+import com.uniruta.app.ui.components.InfoItem
+import com.uniruta.app.ui.components.LinkButton
+import com.uniruta.app.ui.components.NoticeBanner
+import com.uniruta.app.ui.components.PrimaryButton
+import com.uniruta.app.ui.components.RouteMapCard
 import com.uniruta.app.ui.components.SectionTitle
-import com.uniruta.app.ui.components.StatusChip
-import com.uniruta.app.ui.components.UniRutaTopBar
+import com.uniruta.app.ui.components.StatusTone
+import com.uniruta.app.ui.components.StopTimeline
+import com.uniruta.app.ui.components.TripHeading
+import com.uniruta.app.ui.components.UniRutaScreen
 import com.uniruta.app.ui.components.tone
+import com.uniruta.app.ui.format.asDistanceText
+import com.uniruta.app.ui.format.asDurationText
 import com.uniruta.app.ui.format.asLongText
+import com.uniruta.app.ui.format.asMetersDistanceText
+import com.uniruta.app.ui.format.asSecondsDurationText
 import com.uniruta.app.ui.format.asText
+import com.uniruta.app.ui.theme.UniRutaIcons
 
 @Composable
 fun DriverTripDetailScreen(
     trip: Trip,
     passengerCount: Int,
     startBlockedReason: String?,
+    pathState: RoutePathState?,
+    onRetryRoute: () -> Unit,
     onStartTrip: () -> Unit,
     onOpenActiveTrip: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var confirmVisible by rememberSaveable { mutableStateOf(false) }
+    var mapInteracting by remember { mutableStateOf(false) }
+    val calculatedPath = (pathState as? RoutePathState.Ready)?.path?.takeIf { it.isCalculated }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = { UniRutaTopBar(title = "Detalle del recorrido", onBack = onBack) }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = innerPadding.calculateTopPadding() + 16.dp,
-                bottom = innerPadding.calculateBottomPadding() + 28.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Column {
-                    Text(
-                        text = trip.route.name,
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    Text(
-                        text = "${trip.route.origin} → ${trip.route.destination}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                    StatusChip(
-                        label = trip.status.label,
-                        tone = trip.status.tone(),
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
-                }
-            }
-
-            item {
-                RoutePreview(
-                    origin = trip.route.origin,
-                    destination = trip.route.destination,
-                    stopCount = trip.route.stops.size
+    UniRutaScreen(
+        title = "Detalle del recorrido",
+        onBack = onBack,
+        modifier = modifier,
+        scrollEnabled = !mapInteracting,
+        bottomBar = {
+            when (trip.status) {
+                TripStatus.IN_PROGRESS -> PrimaryButton(
+                    text = "Ir al recorrido en curso",
+                    onClick = onOpenActiveTrip,
+                    icon = UniRutaIcons.Activity
                 )
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        SectionTitle(text = "Información del recorrido")
-                        InfoRow(label = "Fecha", value = trip.date.asLongText())
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            InfoRow(
-                                label = "Hora de salida",
-                                value = trip.departureTime.asText(),
-                                modifier = Modifier.weight(1f)
-                            )
-                            InfoRow(
-                                label = "Vehículo",
-                                value = trip.vehiclePlate,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            InfoRow(
-                                label = "Capacidad",
-                                value = "${trip.totalSeats} puestos",
-                                modifier = Modifier.weight(1f)
-                            )
-                            InfoRow(
-                                label = "Pasajeros",
-                                value = "$passengerCount reservas",
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        SectionTitle(text = "Paradas")
-                        trip.route.stops.sortedBy { it.order }.forEach { stop ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                                    shape = CircleShape,
-                                    modifier = Modifier.size(26.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = stop.order.toString(),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = stop.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(start = 12.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                when {
-                    trip.status == TripStatus.IN_PROGRESS -> {
-                        Button(
-                            onClick = onOpenActiveTrip,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(text = "Ir al recorrido en curso")
-                        }
-                    }
-                    trip.status == TripStatus.SCHEDULED -> {
-                        Column {
-                            if (startBlockedReason != null) {
-                                Text(
-                                    text = startBlockedReason,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-                            }
-                            Button(
-                                onClick = { confirmVisible = true },
-                                enabled = startBlockedReason == null,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(text = "Iniciar recorrido")
-                            }
-                        }
-                    }
-                    else -> {
+                TripStatus.SCHEDULED -> {
+                    if (startBlockedReason != null) {
                         Text(
-                            text = "Este recorrido ya no admite acciones.",
+                            text = startBlockedReason,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
+                    PrimaryButton(
+                        text = "Iniciar recorrido",
+                        onClick = { confirmVisible = true },
+                        enabled = startBlockedReason == null,
+                        icon = UniRutaIcons.Play
+                    )
                 }
+                else -> Text(
+                    text = "Este recorrido ya no admite acciones.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
+        }
+    ) {
+        TripHeading(
+            title = trip.route.name,
+            subtitle = "Hacia ${trip.route.destination}",
+            chipLabel = trip.status.label,
+            chipTone = trip.status.tone()
+        )
+
+        SectionTitle(text = "Vista del recorrido")
+        RouteMapCard(
+            route = trip.route,
+            pathState = pathState,
+            onRetry = onRetryRoute,
+            onMapInteraction = { mapInteracting = it }
+        )
+
+        SectionTitle(text = "Información del recorrido", modifier = Modifier.padding(top = 8.dp))
+        InfoGrid(
+            items = listOf(
+                InfoItem(UniRutaIcons.Calendar, "Fecha", trip.date.asLongText()),
+                InfoItem(UniRutaIcons.Clock, "Hora de salida", trip.departureTime.asText()),
+                InfoItem(UniRutaIcons.Truck, "Vehículo", trip.vehiclePlate),
+                InfoItem(UniRutaIcons.Users, "Capacidad", "${trip.totalSeats} pasajeros"),
+                InfoItem(UniRutaIcons.CalendarCheck, "Reservas", if (passengerCount == 1) "1 reserva" else "$passengerCount reservas"),
+                InfoItem(UniRutaIcons.MapPin, "Paradas", "${trip.route.stops.size} paradas"),
+                InfoItem(
+                    UniRutaIcons.Timer,
+                    if (calculatedPath?.durationSeconds != null) "Duración calculada" else "Duración estimada",
+                    calculatedPath?.durationSeconds?.asSecondsDurationText()
+                        ?: trip.estimatedDurationMinutes.asDurationText()
+                ),
+                InfoItem(
+                    UniRutaIcons.ArrowsHorizontal,
+                    if (calculatedPath?.distanceMeters != null) "Distancia calculada" else "Distancia estimada",
+                    calculatedPath?.distanceMeters?.asMetersDistanceText()
+                        ?: trip.estimatedDistanceKm.asDistanceText()
+                )
+            )
+        )
+
+        SectionTitle(text = "Paradas", modifier = Modifier.padding(top = 8.dp))
+        StopTimeline(stops = trip.route.orderedStops.map { it.name })
+
+        if (trip.status == TripStatus.SCHEDULED) {
+            NoticeBanner(
+                text = "Al iniciar se activará el seguimiento de ubicación y el monitoreo del recorrido mientras UniRuta esté abierta.",
+                icon = UniRutaIcons.Info,
+                tone = StatusTone.INFO
+            )
         }
     }
 
     if (confirmVisible) {
         AlertDialog(
             onDismissRequest = { confirmVisible = false },
+            icon = { Icon(imageVector = UniRutaIcons.Play, contentDescription = null) },
             title = { Text(text = "¿Iniciar recorrido?") },
             text = {
                 Text(
-                    text = "Al iniciar comenzarás a compartir tu ubicación y se activará el " +
-                        "monitoreo de movimiento durante todo el trayecto."
+                    text = "Se solicitará el permiso de ubicación para mostrar tu posición en el mapa y se " +
+                        "activará el monitoreo con el acelerómetro y el giroscopio mientras la aplicación esté abierta."
                 )
             },
             confirmButton = {
-                TextButton(
+                LinkButton(
+                    text = "Iniciar",
                     onClick = {
                         confirmVisible = false
                         onStartTrip()
                     }
-                ) {
-                    Text(text = "Iniciar")
-                }
+                )
             },
-            dismissButton = {
-                TextButton(onClick = { confirmVisible = false }) {
-                    Text(text = "Cancelar")
-                }
-            }
+            dismissButton = { LinkButton(text = "Cancelar", onClick = { confirmVisible = false }) }
         )
     }
 }

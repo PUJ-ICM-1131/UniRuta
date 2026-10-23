@@ -1,10 +1,21 @@
 package com.uniruta.app.ui.navigation
 
+import android.content.ActivityNotFoundException
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
-import com.uniruta.app.data.model.MockUser
 import com.uniruta.app.data.model.PaymentMethod
+import com.uniruta.app.data.model.SessionUser
+import com.uniruta.app.device.contacts.PickContactPhone
+import com.uniruta.app.ui.permissions.openDialer
 import com.uniruta.app.ui.screens.student.ConfirmReservationScreen
 import com.uniruta.app.ui.screens.student.PaymentMethodScreen
 import com.uniruta.app.ui.screens.student.PaymentOutcomeScreen
@@ -16,28 +27,53 @@ import com.uniruta.app.ui.screens.student.StudentReservationsScreen
 import com.uniruta.app.ui.screens.student.StudentTripsScreen
 import com.uniruta.app.ui.screens.student.TransferPaymentScreen
 import com.uniruta.app.ui.screens.student.TripDetailScreen
+import com.uniruta.app.viewmodel.EmergencyContactUiState
+import com.uniruta.app.viewmodel.EmergencyContactViewModel
 import com.uniruta.app.viewmodel.StudentUiState
 import com.uniruta.app.viewmodel.StudentViewModel
 
 fun EntryProviderScope<NavKey>.studentEntries(
-    state: StudentUiState,
+    uiState: State<StudentUiState>,
+    contactState: State<EmergencyContactUiState>,
     viewModel: StudentViewModel,
-    user: MockUser?,
+    contactViewModel: EmergencyContactViewModel,
+    user: SessionUser?,
     onLogout: () -> Unit,
     backStack: NavBackStack<NavKey>
 ) {
+    val state by uiState
+    val contact by contactState
+
     fun backToHome() {
         backStack.clear()
         backStack.add(StudentHome)
     }
 
     entry<StudentHome> {
+        val context = LocalContext.current
+        val contactPicker = rememberLauncherForActivityResult(PickContactPhone()) { uri ->
+            if (uri != null) contactViewModel.onContactPicked(uri.toString())
+        }
         user?.let { current ->
             StudentHomeScreen(
                 user = current,
+                contactState = contact,
                 onOpenTrips = { backStack.add(StudentTrips) },
                 onOpenReservations = { backStack.add(StudentReservations) },
                 onOpenPass = { backStack.add(StudentPass()) },
+                onPickContact = {
+                    contactViewModel.clearError()
+                    try {
+                        contactPicker.launch(Unit)
+                    } catch (error: ActivityNotFoundException) {
+                        contactViewModel.onPickerUnavailable()
+                    }
+                },
+                onCallContact = { phone ->
+                    if (!context.openDialer(phone)) contactViewModel.onDialerUnavailable()
+                },
+                onRemoveContact = contactViewModel::removeContact,
+                onDismissContactError = contactViewModel::clearError,
                 onLogout = onLogout
             )
         }
@@ -52,10 +88,19 @@ fun EntryProviderScope<NavKey>.studentEntries(
     }
 
     entry<TripDetail> { key ->
+        LaunchedEffect(key.tripId) { viewModel.loadRoutePath(key.tripId) }
+        DisposableEffect(key.tripId) {
+            viewModel.startVehicleDemo(key.tripId)
+            onDispose { viewModel.stopVehicleDemo() }
+        }
+
         state.tripBy(key.tripId)?.let { trip ->
             TripDetailScreen(
                 trip = trip,
                 alreadyReserved = state.hasActiveReservationFor(trip.id),
+                pathState = state.routePathFor(trip),
+                demoVehicle = state.demoVehiclePositions[trip.id],
+                onRetryRoute = { viewModel.loadRoutePath(trip.id, forceRefresh = true) },
                 onReserve = { backStack.add(ConfirmReservation(trip.id)) },
                 onBack = { backStack.removeLastOrNull() }
             )
@@ -96,11 +141,20 @@ fun EntryProviderScope<NavKey>.studentEntries(
 
     entry<TransferPayment> { key ->
         val payment = state.paymentFor(key.reservationId)
+        val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+            if (uri != null) viewModel.attachReceipt(key.reservationId, uri.toString())
+        }
         TransferPaymentScreen(
             amount = payment?.amount ?: 0,
             reservationId = key.reservationId,
             receiptName = payment?.receiptName,
-            onAttachReceipt = { viewModel.attachReceipt(key.reservationId) },
+            receiptPath = payment?.receiptPath,
+            importInProgress = state.receiptImportInProgress,
+            receiptError = state.receiptError,
+            onPickReceipt = {
+                viewModel.clearReceiptError()
+                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
             onSubmit = {
                 viewModel.submitReceipt(key.reservationId)
                 backStack.add(PaymentOutcome(key.reservationId))
@@ -140,6 +194,7 @@ fun EntryProviderScope<NavKey>.studentEntries(
                 row = row,
                 passAvailable = state.availablePassFor(key.reservationId) != null,
                 onOpenPass = { backStack.add(StudentPass(key.reservationId)) },
+                onCompletePayment = { backStack.add(PaymentMethodChoice(key.reservationId)) },
                 onCancelReservation = {
                     viewModel.cancelReservation(key.reservationId)
                     backStack.removeLastOrNull()

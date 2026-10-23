@@ -1,29 +1,25 @@
 package com.uniruta.app.ui.screens.student
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.uniruta.app.data.model.PaymentMethod
-import com.uniruta.app.ui.components.UniRutaTopBar
+import com.uniruta.app.ui.components.FeatureCard
+import com.uniruta.app.ui.components.FeatureItem
+import com.uniruta.app.ui.components.SectionLabel
+import com.uniruta.app.ui.components.UniRutaScreen
+import com.uniruta.app.ui.components.icon
+import com.uniruta.app.ui.components.tone
 import com.uniruta.app.ui.format.asPriceText
+import com.uniruta.app.ui.theme.TotalStyle
 
 @Composable
 fun PaymentMethodScreen(
@@ -32,69 +28,44 @@ fun PaymentMethodScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = { UniRutaTopBar(title = "Método de pago", onBack = onBack) }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    UniRutaScreen(
+        title = "Método de pago",
+        onBack = onBack,
+        modifier = modifier
+    ) {
+        Text(
+            text = "Selecciona cómo quieres pagar",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = "Selecciona cómo quieres pagar",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Text(
-                text = "Total de la reserva: ${amount.asPriceText()}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            PaymentMethod.entries.forEach { method ->
-                MethodCard(method = method, onClick = { onMethodSelected(method) })
+            Row(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Total de la reserva:",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(text = amount.asPriceText(), style = TotalStyle)
             }
         }
-    }
-}
-
-@Composable
-private fun MethodCard(
-    method: PaymentMethod,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = method.label,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+        SectionLabel(text = "Métodos disponibles", modifier = Modifier.padding(top = 8.dp))
+        PaymentMethod.entries.forEach { method ->
+            FeatureCard(
+                item = FeatureItem(
+                    title = method.label,
+                    description = method.description,
+                    icon = method.icon(),
+                    tone = method.tone(),
+                    onClick = { onMethodSelected(method) }
                 )
-                Text(
-                    text = method.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null
             )
         }
     }

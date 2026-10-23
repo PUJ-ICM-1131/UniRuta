@@ -2,77 +2,100 @@ package com.uniruta.app.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.uniruta.app.ui.theme.MetricStyle
+import com.uniruta.app.ui.theme.UniRutaTheme
 
+@Immutable
 data class Metric(
     val label: String,
     val value: Int,
-    val highlighted: Boolean = false
+    val icon: ImageVector? = null,
+    val highlighted: Boolean = false,
+    val tone: StatusTone = StatusTone.INFO
 )
 
 @Composable
 fun MetricGrid(
     metrics: List<Metric>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    columns: Int = 2
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        metrics.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        metrics.chunked(columns).forEach { row ->
+            Row(
+                modifier = Modifier.height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 row.forEach { metric ->
-                    MetricCard(metric = metric, modifier = Modifier.weight(1f))
+                    MetricCard(
+                        metric = metric,
+                        stacked = columns > 2,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
                 }
-                if (row.size == 1) {
-                    Column(modifier = Modifier.weight(1f)) {}
-                }
+                repeat(columns - row.size) { Spacer(modifier = Modifier.weight(1f)) }
             }
         }
     }
 }
 
 @Composable
-private fun MetricCard(
+fun MetricCard(
     metric: Metric,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    stacked: Boolean = false
 ) {
-    Card(
+    val extended = UniRutaTheme.colors
+    UniRutaCard(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = if (metric.highlighted) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-            contentColor = if (metric.highlighted) {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
-        )
+        containerColor = if (metric.highlighted) extended.warningContainer else MaterialTheme.colorScheme.surface,
+        borderColor = if (metric.highlighted) extended.warningBorder else MaterialTheme.colorScheme.outlineVariant,
+        contentPadding = PaddingValues(14.dp),
+        verticalSpacing = 6.dp
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Text(
-                text = metric.value.toString(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = metric.label,
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(top = 2.dp)
-            )
+        val valueColor = if (metric.highlighted) extended.onWarningContainer else MaterialTheme.colorScheme.primary
+        val iconTone = if (metric.highlighted) StatusTone.WARNING else metric.tone
+        if (stacked) {
+            metric.icon?.let { IconTile(icon = it, tone = iconTone, size = 36.dp, iconSize = 20.dp, cornerRadius = 10.dp) }
+            Text(text = metric.value.toString(), style = MetricStyle, color = valueColor)
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = metric.value.toString(),
+                    style = MetricStyle,
+                    color = valueColor,
+                    modifier = Modifier.weight(1f)
+                )
+                metric.icon?.let { IconTile(icon = it, tone = iconTone, size = 40.dp, iconSize = 22.dp, cornerRadius = 12.dp) }
+            }
         }
+        Text(
+            text = metric.label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (metric.highlighted) extended.onWarningContainer else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

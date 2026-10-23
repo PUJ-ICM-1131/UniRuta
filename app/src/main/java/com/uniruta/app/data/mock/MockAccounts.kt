@@ -5,8 +5,6 @@ import com.uniruta.app.data.model.UserRole
 
 object MockAccounts {
 
-    const val DEMO_PASSWORD = "123456"
-
     val all = listOf(
         MockUser(
             id = "est-001",
@@ -27,11 +25,6 @@ object MockAccounts {
             role = UserRole.ADMIN
         )
     )
-
-    fun findBy(email: String, password: String): MockUser? {
-        if (password != DEMO_PASSWORD) return null
-        return all.firstOrNull { it.email.equals(email.trim(), ignoreCase = true) }
-    }
 
     fun findBy(role: UserRole): MockUser = all.first { it.role == role }
 }

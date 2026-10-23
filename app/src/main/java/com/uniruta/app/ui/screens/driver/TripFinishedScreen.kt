@@ -1,99 +1,89 @@
 package com.uniruta.app.ui.screens.driver
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.uniruta.app.data.model.Trip
-import com.uniruta.app.ui.components.InfoRow
+import com.uniruta.app.ui.components.HeroStatus
+import com.uniruta.app.ui.components.InfoList
+import com.uniruta.app.ui.components.Metric
+import com.uniruta.app.ui.components.MetricGrid
+import com.uniruta.app.ui.components.NoticeBanner
+import com.uniruta.app.ui.components.PrimaryButton
 import com.uniruta.app.ui.components.SectionTitle
-import com.uniruta.app.ui.components.StatusChip
-import com.uniruta.app.ui.components.UniRutaTopBar
-import com.uniruta.app.ui.components.tone
+import com.uniruta.app.ui.components.StatusTone
+import com.uniruta.app.ui.components.UniRutaScreen
 import com.uniruta.app.ui.format.asLongText
 import com.uniruta.app.ui.format.asText
+import com.uniruta.app.ui.theme.UniRutaIcons
 
 @Composable
 fun TripFinishedScreen(
     trip: Trip,
     boardedCount: Int,
     passengerCount: Int,
-    anomalyCount: Int,
+    sensorAnomalyCount: Int,
+    demoAnomalyCount: Int,
     incidentCount: Int,
     onBackHome: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = { UniRutaTopBar(title = "Recorrido finalizado") }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(56.dp)
+    UniRutaScreen(
+        title = "Recorrido finalizado",
+        onBack = null,
+        modifier = modifier,
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 24.dp),
+        bottomBar = { PrimaryButton(text = "Volver al inicio", onClick = onBackHome) }
+    ) {
+        HeroStatus(
+            icon = UniRutaIcons.Check,
+            tone = StatusTone.POSITIVE,
+            title = "Recorrido finalizado",
+            subtitle = "El seguimiento de ubicación y sensores se ha detenido."
+        )
+
+        SectionTitle(text = "Resumen")
+        InfoList(
+            rows = listOf(
+                "Ruta" to trip.route.name,
+                "Fecha" to trip.date.asLongText(),
+                "Hora de salida" to trip.departureTime.asText(),
+                "Vehículo" to trip.vehiclePlate,
+                "Pasajeros con reserva" to passengerCount.toString(),
+                "Estado" to trip.status.label
             )
+        )
 
-            Text(text = "Recorrido finalizado", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                text = "Se detuvo el envío de ubicación y el monitoreo de movimiento.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        MetricGrid(
+            columns = 3,
+            metrics = listOf(
+                Metric(
+                    label = "Abordajes registrados",
+                    value = boardedCount,
+                    icon = UniRutaIcons.UserCheck,
+                    tone = StatusTone.POSITIVE
+                ),
+                Metric(
+                    label = "Movimientos anómalos",
+                    value = sensorAnomalyCount,
+                    icon = UniRutaIcons.Warning,
+                    tone = StatusTone.WARNING
+                ),
+                Metric(label = "Novedades", value = incidentCount, icon = UniRutaIcons.Note, tone = StatusTone.INFO)
             )
+        )
 
-            StatusChip(label = trip.status.label, tone = trip.status.tone())
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    SectionTitle(text = "Resumen")
-                    InfoRow(label = "Ruta", value = trip.route.name)
-                    InfoRow(label = "Fecha", value = trip.date.asLongText())
-                    InfoRow(label = "Hora de salida", value = trip.departureTime.asText())
-                    InfoRow(
-                        label = "Abordajes registrados",
-                        value = "$boardedCount de $passengerCount"
-                    )
-                    InfoRow(label = "Movimientos anómalos", value = anomalyCount.toString())
-                    InfoRow(label = "Novedades reportadas", value = incidentCount.toString())
-                }
-            }
-
-            Button(
-                onClick = onBackHome,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(text = "Volver al inicio")
-            }
+        if (demoAnomalyCount > 0) {
+            NoticeBanner(
+                text = if (demoAnomalyCount == 1) {
+                    "Además se registró 1 evento de demostración, que no cuenta como lectura real de los sensores."
+                } else {
+                    "Además se registraron $demoAnomalyCount eventos de demostración, que no cuentan como lecturas reales de los sensores."
+                },
+                icon = UniRutaIcons.Info,
+                tone = StatusTone.NEUTRAL
+            )
         }
     }
 }

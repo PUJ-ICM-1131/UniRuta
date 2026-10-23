@@ -35,5 +35,6 @@ data class Payment(
     val method: PaymentMethod,
     val status: PaymentStatus,
     val receiptName: String? = null,
+    val receiptPath: String? = null,
     val rejectionReason: RejectionReason? = null
 )

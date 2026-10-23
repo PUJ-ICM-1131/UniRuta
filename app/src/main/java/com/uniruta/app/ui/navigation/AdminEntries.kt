@@ -1,10 +1,12 @@
 package com.uniruta.app.ui.navigation
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import com.uniruta.app.data.mock.MockAdminData
-import com.uniruta.app.data.model.MockUser
+import com.uniruta.app.data.model.SessionUser
 import com.uniruta.app.ui.screens.admin.AdminHomeScreen
 import com.uniruta.app.ui.screens.admin.AdminPaymentDetailScreen
 import com.uniruta.app.ui.screens.admin.AdminPaymentsScreen
@@ -18,12 +20,14 @@ import com.uniruta.app.viewmodel.AdminUiState
 import com.uniruta.app.viewmodel.AdminViewModel
 
 fun EntryProviderScope<NavKey>.adminEntries(
-    state: AdminUiState,
+    uiState: State<AdminUiState>,
     viewModel: AdminViewModel,
-    user: MockUser?,
+    user: SessionUser?,
     onLogout: () -> Unit,
     backStack: NavBackStack<NavKey>
 ) {
+    val state by uiState
+
     entry<AdminHome> {
         user?.let { current ->
             AdminHomeScreen(

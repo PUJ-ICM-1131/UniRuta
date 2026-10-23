@@ -1,11 +1,13 @@
 package com.uniruta.app.ui.format
 
+import com.uniruta.app.data.model.GeoPoint
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.roundToInt
 
 private val locale: Locale = Locale.forLanguageTag("es-CO")
 private val longDate = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", locale)
@@ -33,3 +35,19 @@ fun Int.asDurationText(): String {
 }
 
 fun Double.asDistanceText(): String = String.format(locale, "%.1f km", this)
+
+fun Double.asMetersDistanceText(): String = (this / 1000.0).asDistanceText()
+
+fun Double.asSecondsDurationText(): String = (this / 60.0).roundToInt().coerceAtLeast(1).asDurationText()
+
+fun Float.asReadingText(): String = String.format(locale, "%.2f", this)
+
+fun Float.asMagnitudeText(): String = String.format(locale, "%.1f", this)
+
+fun GeoPoint.asCoordinateText(): String = String.format(locale, "Lat %.5f · Lon %.5f", latitude, longitude)
+
+fun Long.asFileSizeText(): String = when {
+    this >= 1024L * 1024L -> String.format(locale, "%.1f MB", this / (1024.0 * 1024.0))
+    this >= 1024L -> String.format(locale, "%.0f KB", this / 1024.0)
+    else -> "$this B"
+}

@@ -96,3 +96,19 @@ fun homeDestinationFor(role: UserRole): NavKey = when (role) {
     UserRole.DRIVER -> DriverHome
     UserRole.ADMIN -> AdminHome
 }
+
+fun NavKey.requiredRole(): UserRole? = when (this) {
+    StudentHome, StudentTrips, StudentReservations,
+    is TripDetail, is ConfirmReservation, is PaymentMethodChoice, is TransferPayment,
+    is PaymentOutcome, is ReservationDetail, is StudentPass -> UserRole.STUDENT
+    DriverHome, DriverTrips, ActiveTrip, QrScannerMock, BoardingResult, DriverPassengers, ReportIncident,
+    is DriverTripDetail, is TripFinished -> UserRole.DRIVER
+    AdminHome, AdminRoutes, AdminVehicles, AdminTrips, AdminTripForm, AdminPayments,
+    is AdminRouteForm, is AdminVehicleForm, is AdminPaymentDetail -> UserRole.ADMIN
+    else -> null
+}
+
+fun List<NavKey>.isValidFor(role: UserRole?): Boolean = when (role) {
+    null -> size == 1 && first() == Login
+    else -> firstOrNull() == homeDestinationFor(role) && all { it.requiredRole() == role }
+}

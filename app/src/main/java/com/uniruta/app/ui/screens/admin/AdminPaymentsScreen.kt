@@ -1,33 +1,38 @@
 package com.uniruta.app.ui.screens.admin
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.uniruta.app.data.model.PaymentMethod
 import com.uniruta.app.data.model.Trip
 import com.uniruta.app.data.model.TripPassenger
+import com.uniruta.app.ui.components.CardDivider
+import com.uniruta.app.ui.components.ChipRow
+import com.uniruta.app.ui.components.EmptyState
+import com.uniruta.app.ui.components.MetaItem
+import com.uniruta.app.ui.components.SectionLabel
 import com.uniruta.app.ui.components.StatusChip
 import com.uniruta.app.ui.components.StatusTone
-import com.uniruta.app.ui.components.UniRutaTopBar
+import com.uniruta.app.ui.components.UniRutaCard
+import com.uniruta.app.ui.components.UniRutaScreen
+import com.uniruta.app.ui.components.icon
 import com.uniruta.app.ui.components.tone
 import com.uniruta.app.ui.format.asPriceText
 import com.uniruta.app.ui.format.asShortText
+import com.uniruta.app.ui.theme.PriceStyle
+import com.uniruta.app.ui.theme.UniRutaIcons
+import com.uniruta.app.ui.theme.UniRutaTheme
 
 @Composable
 fun AdminPaymentsScreen(
@@ -37,26 +42,28 @@ fun AdminPaymentsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = { UniRutaTopBar(title = "Pagos", onBack = onBack) }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = innerPadding.calculateTopPadding() + 16.dp,
-                bottom = innerPadding.calculateBottomPadding() + 24.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(entries, key = { it.payment.id }) { entry ->
-                PaymentCard(
-                    entry = entry,
-                    trip = tripResolver(entry.tripId),
-                    onClick = { onPaymentSelected(entry.payment.id) }
-                )
+    val attention = entries.filter { it.requiresAdminReview }
+    val others = entries.filterNot { it.requiresAdminReview }
+
+    UniRutaScreen(
+        title = "Pagos",
+        onBack = onBack,
+        modifier = modifier
+    ) {
+        if (entries.isEmpty()) {
+            EmptyState(icon = UniRutaIcons.Cash, message = "No hay pagos registrados.")
+            return@UniRutaScreen
+        }
+        if (attention.isNotEmpty()) {
+            SectionLabel(text = "Requieren atención · ${attention.size}")
+            attention.forEach { entry ->
+                PaymentCard(entry = entry, trip = tripResolver(entry.tripId), onClick = { onPaymentSelected(entry.payment.id) })
+            }
+        }
+        if (others.isNotEmpty()) {
+            SectionLabel(text = "Otros pagos", modifier = Modifier.padding(top = if (attention.isEmpty()) 0.dp else 8.dp))
+            others.forEach { entry ->
+                PaymentCard(entry = entry, trip = tripResolver(entry.tripId), onClick = { onPaymentSelected(entry.payment.id) })
             }
         }
     }
@@ -68,76 +75,45 @@ private fun PaymentCard(
     trip: Trip?,
     onClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+    val attention = entry.requiresAdminReview
+    UniRutaCard(
+        onClick = onClick,
+        borderColor = if (attention) UniRutaTheme.colors.warningBorder else MaterialTheme.colorScheme.outlineVariant,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        verticalSpacing = 10.dp
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(text = entry.studentName, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = entry.studentName,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
-                )
-                if (entry.requiresAdminReview) {
-                    StatusChip(label = "Requiere revisión", tone = StatusTone.WARNING)
-                }
-            }
-
-            Text(
-                text = trip?.route?.name ?: "Recorrido no disponible",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            if (trip != null) {
-                Text(
-                    text = trip.date.asShortText(),
-                    style = MaterialTheme.typography.bodySmall
+                    text = listOfNotNull(trip?.route?.name ?: "Recorrido no disponible", trip?.date?.asShortText())
+                        .joinToString(" · "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            if (attention) {
                 StatusChip(
-                    label = "Pago: ${entry.payment.status.label}",
-                    tone = entry.payment.status.tone()
+                    label = if (entry.payment.method == PaymentMethod.CASH_POINT) "Por confirmar" else "Requiere revisión",
+                    tone = StatusTone.WARNING
                 )
-                StatusChip(
-                    label = "Reserva: ${entry.reservation.status.label}",
-                    tone = entry.reservation.status.tone()
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = entry.payment.method.label,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = entry.payment.amount.asPriceText(),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
+            } else {
+                Icon(
+                    imageVector = UniRutaIcons.ChevronRight,
+                    contentDescription = null,
+                    tint = UniRutaTheme.colors.mutedIcon,
+                    modifier = Modifier.size(24.dp)
                 )
             }
+        }
+        ChipRow {
+            StatusChip(label = "Pago: ${entry.payment.status.label}", tone = entry.payment.status.tone())
+            StatusChip(label = "Reserva: ${entry.reservation.status.label}", tone = entry.reservation.status.tone())
+        }
+        CardDivider()
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            MetaItem(icon = entry.payment.method.icon(), text = entry.payment.method.label, modifier = Modifier.weight(1f))
+            Text(text = entry.payment.amount.asPriceText(), style = PriceStyle, color = MaterialTheme.colorScheme.primary)
         }
     }
 }

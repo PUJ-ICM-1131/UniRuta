@@ -11,16 +11,30 @@ import com.uniruta.app.data.model.Trip
 import com.uniruta.app.data.model.TripPassenger
 import java.time.LocalDateTime
 
+data class DemoScan(
+    val label: String,
+    val token: String
+)
+
 object MockDriverData {
 
     const val DRIVER_NAME = "Carlos Medina"
     const val UNKNOWN_TOKEN = "00000000-0000-0000-0000-000000000000"
+    private const val USED_PASS_TOKEN = "c47d2a91-5b60-4f0e-9a72-3ed418c6b075"
+    private const val OTHER_TRIP_PASS_TOKEN = "f10b73c4-2a88-4d31-bb05-7c9e2f4a6d12"
 
     private val anaReservation = MockStudentData.reservations.first { it.id == "res-2002" }
     private val anaPayment = MockStudentData.payments.first { it.reservationId == anaReservation.id }
     private val anaPass = MockStudentData.passes.first { it.reservationId == anaReservation.id }
+    private val anaPendingReservation = MockStudentData.reservations.first { it.id == "res-2001" }
+    private val anaPendingPayment = MockStudentData.payments.first { it.reservationId == anaPendingReservation.id }
 
-    val demoToken: String = anaPass.token
+    val demoScans: List<DemoScan> = listOf(
+        DemoScan(label = "Pase de Ana Gómez · recorrido de hoy", token = anaPass.token),
+        DemoScan(label = "Pase de Valentina Cruz · ya utilizado", token = USED_PASS_TOKEN),
+        DemoScan(label = "Pase de Mateo Herrera · recorrido de mañana", token = OTHER_TRIP_PASS_TOKEN),
+        DemoScan(label = "Código inexistente", token = UNKNOWN_TOKEN)
+    )
 
     val assignedTrips: List<Trip> = MockTrips.all.filter { it.driverName == DRIVER_NAME }
 
@@ -68,7 +82,7 @@ object MockDriverData {
             pass = DigitalPass(
                 id = "pass-4102",
                 reservationId = "res-2102",
-                token = "c47d2a91-5b60-4f0e-9a72-3ed418c6b075",
+                token = USED_PASS_TOKEN,
                 status = PassStatus.USED
             )
         ),
@@ -92,9 +106,14 @@ object MockDriverData {
             pass = DigitalPass(
                 id = "pass-4103",
                 reservationId = "res-2103",
-                token = "f10b73c4-2a88-4d31-bb05-7c9e2f4a6d12",
+                token = OTHER_TRIP_PASS_TOKEN,
                 status = PassStatus.ACTIVE
             )
+        ),
+        TripPassenger(
+            studentName = "Ana Gómez",
+            reservation = anaPendingReservation,
+            payment = anaPendingPayment
         )
     )
 }

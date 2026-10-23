@@ -2,9 +2,9 @@ package com.uniruta.app.data.model
 
 import java.time.LocalTime
 
-enum class SensorSource(val label: String) {
-    ACCELEROMETER("Acelerómetro"),
-    GYROSCOPE("Giroscopio")
+enum class SensorSource(val label: String, val unit: String) {
+    ACCELEROMETER("Acelerómetro", "m/s²"),
+    GYROSCOPE("Giroscopio", "°/s")
 }
 
 enum class AnomalyType(val label: String, val source: SensorSource) {
@@ -13,9 +13,16 @@ enum class AnomalyType(val label: String, val source: SensorSource) {
     SHARP_TURN("Giro pronunciado", SensorSource.GYROSCOPE)
 }
 
+enum class EventOrigin(val label: String) {
+    SENSOR("Lectura del sensor"),
+    DEMO("Demostración")
+}
+
 data class AnomalyEvent(
     val id: String,
     val tripId: String,
     val type: AnomalyType,
-    val time: LocalTime
+    val time: LocalTime,
+    val origin: EventOrigin,
+    val magnitude: Float? = null
 )

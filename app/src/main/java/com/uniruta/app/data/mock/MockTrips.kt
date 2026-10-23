@@ -1,5 +1,6 @@
 package com.uniruta.app.data.mock
 
+import com.uniruta.app.data.model.GeoPoint
 import com.uniruta.app.data.model.Route
 import com.uniruta.app.data.model.Stop
 import com.uniruta.app.data.model.Trip
@@ -10,17 +11,19 @@ object MockTrips {
 
     private const val DESTINATION = "Pontificia Universidad Javeriana"
 
+    private val javerianaCampus = GeoPoint(4.628706, -74.063650)
+
     private val chiaRoute = Route(
         id = "route-chia",
         name = "Chía → Javeriana",
         origin = "Chía",
         destination = DESTINATION,
         stops = listOf(
-            Stop("stop-ch-1", "Chía - Parque Central", 1),
-            Stop("stop-ch-2", "Puente del Común", 2),
-            Stop("stop-ch-3", "Autopista Norte - Calle 170", 3),
-            Stop("stop-ch-4", "Calle 100", 4),
-            Stop("stop-ch-5", "Javeriana - Carrera 7", 5)
+            Stop("stop-ch-1", "Chía - Parque Central", 1, GeoPoint(4.861286, -74.060220)),
+            Stop("stop-ch-2", "Puente del Común", 2, GeoPoint(4.863434, -74.029631)),
+            Stop("stop-ch-3", "Autopista Norte - Calle 170", 3, GeoPoint(4.751641, -74.046356)),
+            Stop("stop-ch-4", "Calle 100", 4, GeoPoint(4.683805, -74.057702)),
+            Stop("stop-ch-5", "Javeriana - Carrera 7", 5, javerianaCampus)
         )
     )
 
@@ -30,11 +33,11 @@ object MockTrips {
         origin = "Cedritos",
         destination = DESTINATION,
         stops = listOf(
-            Stop("stop-ce-1", "Cedritos - Calle 140", 1),
-            Stop("stop-ce-2", "Calle 127", 2),
-            Stop("stop-ce-3", "Calle 116", 3),
-            Stop("stop-ce-4", "Héroes", 4),
-            Stop("stop-ce-5", "Javeriana - Carrera 7", 5)
+            Stop("stop-ce-1", "Cedritos - Calle 140", 1, GeoPoint(4.723606, -74.047271)),
+            Stop("stop-ce-2", "Calle 127", 2, GeoPoint(4.704509, -74.054259)),
+            Stop("stop-ce-3", "Calle 116", 3, GeoPoint(4.697981, -74.055329)),
+            Stop("stop-ce-4", "Héroes", 4, GeoPoint(4.668121, -74.060326)),
+            Stop("stop-ce-5", "Javeriana - Carrera 7", 5, javerianaCampus)
         )
     )
 
@@ -44,11 +47,11 @@ object MockTrips {
         origin = "Suba",
         destination = DESTINATION,
         stops = listOf(
-            Stop("stop-su-1", "Suba - Centro", 1),
-            Stop("stop-su-2", "Portal Suba", 2),
-            Stop("stop-su-3", "Calle 80", 3),
-            Stop("stop-su-4", "Avenida Caracas", 4),
-            Stop("stop-su-5", "Javeriana - Carrera 7", 5)
+            Stop("stop-su-1", "Suba - Centro", 1, GeoPoint(4.741013, -74.083865)),
+            Stop("stop-su-2", "Portal Suba", 2, GeoPoint(4.746897, -74.094291)),
+            Stop("stop-su-3", "Calle 80", 3, GeoPoint(4.685777, -74.080333)),
+            Stop("stop-su-4", "Avenida Caracas", 4, GeoPoint(4.631028, -74.067982)),
+            Stop("stop-su-5", "Javeriana - Carrera 7", 5, javerianaCampus)
         )
     )
 
@@ -58,11 +61,11 @@ object MockTrips {
         origin = "Modelia",
         destination = DESTINATION,
         stops = listOf(
-            Stop("stop-mo-1", "Modelia - Avenida La Esperanza", 1),
-            Stop("stop-mo-2", "Avenida Boyacá", 2),
-            Stop("stop-mo-3", "Salitre", 3),
-            Stop("stop-mo-4", "Universidad Nacional", 4),
-            Stop("stop-mo-5", "Javeriana - Carrera 7", 5)
+            Stop("stop-mo-1", "Modelia - Avenida La Esperanza", 1, GeoPoint(4.667656, -74.122151)),
+            Stop("stop-mo-2", "Avenida Boyacá", 2, GeoPoint(4.663054, -74.114360)),
+            Stop("stop-mo-3", "Salitre", 3, GeoPoint(4.650967, -74.101709)),
+            Stop("stop-mo-4", "Universidad Nacional", 4, GeoPoint(4.636989, -74.079345)),
+            Stop("stop-mo-5", "Javeriana - Carrera 7", 5, javerianaCampus)
         )
     )
 
@@ -75,7 +78,7 @@ object MockTrips {
             route = chiaRoute,
             date = today,
             departureTime = LocalTime.of(6, 30),
-            availableSeats = 12,
+            availableSeats = 22,
             totalSeats = 25,
             vehiclePlate = "TUV-421",
             driverName = "Carlos Medina",
@@ -103,7 +106,7 @@ object MockTrips {
             departureTime = LocalTime.of(6, 45),
             availableSeats = 0,
             totalSeats = 22,
-            vehiclePlate = "GHT-905",
+            vehiclePlate = "KLP-337",
             driverName = "Andrés Lozano",
             estimatedDurationMinutes = 50,
             estimatedDistanceKm = 17.2,
@@ -127,7 +130,7 @@ object MockTrips {
             route = chiaRoute,
             date = tomorrow,
             departureTime = LocalTime.of(7, 30),
-            availableSeats = 9,
+            availableSeats = 23,
             totalSeats = 25,
             vehiclePlate = "TUV-421",
             driverName = "Carlos Medina",

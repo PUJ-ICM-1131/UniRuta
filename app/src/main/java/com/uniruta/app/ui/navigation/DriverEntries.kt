@@ -1,10 +1,28 @@
 package com.uniruta.app.ui.navigation
 
+import android.content.ActivityNotFoundException
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import com.uniruta.app.data.mock.MockDriverData
-import com.uniruta.app.data.model.MockUser
+import com.uniruta.app.data.model.EventOrigin
+import com.uniruta.app.data.model.SessionUser
+import com.uniruta.app.device.qr.QrCodeScanner
+import com.uniruta.app.device.qr.QrScanResult
+import com.uniruta.app.ui.permissions.openAppSettings
+import com.uniruta.app.ui.permissions.openLocationSettings
+import com.uniruta.app.ui.permissions.rememberLocationPermissionRequest
 import com.uniruta.app.ui.screens.driver.ActiveTripScreen
 import com.uniruta.app.ui.screens.driver.BoardingResultScreen
 import com.uniruta.app.ui.screens.driver.DriverHomeScreen
@@ -18,12 +36,14 @@ import com.uniruta.app.viewmodel.DriverUiState
 import com.uniruta.app.viewmodel.DriverViewModel
 
 fun EntryProviderScope<NavKey>.driverEntries(
-    state: DriverUiState,
+    uiState: State<DriverUiState>,
     viewModel: DriverViewModel,
-    user: MockUser?,
+    user: SessionUser?,
     onLogout: () -> Unit,
     backStack: NavBackStack<NavKey>
 ) {
+    val state by uiState
+
     fun backToHome() {
         backStack.clear()
         backStack.add(DriverHome)
@@ -65,6 +85,12 @@ fun EntryProviderScope<NavKey>.driverEntries(
     }
 
     entry<DriverTripDetail> { key ->
+        val startWithLocation = rememberLocationPermissionRequest {
+            viewModel.startTrip(key.tripId)
+            openActiveTrip()
+        }
+        LaunchedEffect(key.tripId) { viewModel.loadRoutePath(key.tripId) }
+
         state.tripBy(key.tripId)?.let { trip ->
             DriverTripDetailScreen(
                 trip = trip,
@@ -74,10 +100,9 @@ fun EntryProviderScope<NavKey>.driverEntries(
                 } else {
                     null
                 },
-                onStartTrip = {
-                    viewModel.startTrip(trip.id)
-                    openActiveTrip()
-                },
+                pathState = state.routePathFor(trip),
+                onRetryRoute = { viewModel.loadRoutePath(trip.id, forceRefresh = true) },
+                onStartTrip = startWithLocation,
                 onOpenActiveTrip = ::openActiveTrip,
                 onBack = { backStack.removeLastOrNull() }
             )
@@ -85,15 +110,27 @@ fun EntryProviderScope<NavKey>.driverEntries(
     }
 
     entry<ActiveTrip> {
+        val context = LocalContext.current
+        val requestLocation = rememberLocationPermissionRequest { viewModel.refreshLocationAccess() }
+
         state.activeTrip?.let { trip ->
             ActiveTripScreen(
                 trip = trip,
+                pathState = state.routePathFor(trip),
                 gpsStatus = state.gpsStatus,
+                deviceLocation = state.deviceLocation,
                 sensorStatus = state.sensorStatus,
+                accelerometer = state.accelerometer,
+                gyroscope = state.gyroscope,
                 boardedCount = state.boardedCountFor(trip.id),
                 passengerCount = state.passengersFor(trip.id).size,
                 anomalies = state.anomaliesFor(trip.id),
                 incidentCount = state.incidentsFor(trip.id).size,
+                onRequestLocation = requestLocation,
+                onOpenLocationSettings = { context.openLocationSettings() },
+                onOpenAppSettings = { context.openAppSettings() },
+                onRetryRoute = { viewModel.loadRoutePath(trip.id, forceRefresh = true) },
+                onAddDemoAnomaly = viewModel::addDemoAnomaly,
                 onValidateBoarding = { backStack.add(QrScannerMock) },
                 onOpenPassengers = { backStack.add(DriverPassengers) },
                 onReportIncident = { backStack.add(ReportIncident) },
@@ -110,16 +147,31 @@ fun EntryProviderScope<NavKey>.driverEntries(
     }
 
     entry<QrScannerMock> {
+        val context = LocalContext.current
+        val scanner = remember(context) { QrCodeScanner(context) }
+        var scanError by rememberSaveable { mutableStateOf<String?>(null) }
+
+        fun validate(token: String) {
+            scanError = null
+            viewModel.validateToken(token)
+            backStack.add(BoardingResult)
+        }
+
         QrScannerScreen(
             routeName = state.activeTrip?.route?.name,
-            onSimulateValidRead = {
-                viewModel.validateToken(MockDriverData.demoToken)
-                backStack.add(BoardingResult)
+            scanError = scanError,
+            demoScans = MockDriverData.demoScans,
+            onScanWithCamera = {
+                scanError = null
+                scanner.scan { result ->
+                    when (result) {
+                        is QrScanResult.Success -> validate(result.content)
+                        QrScanResult.Cancelled -> Unit
+                        is QrScanResult.Failure -> scanError = result.message
+                    }
+                }
             },
-            onSimulateInvalidRead = {
-                viewModel.validateToken(MockDriverData.UNKNOWN_TOKEN)
-                backStack.add(BoardingResult)
-            },
+            onDemoScan = { scan -> validate(scan.token) },
             onBack = { backStack.removeLastOrNull() }
         )
     }
@@ -160,9 +212,29 @@ fun EntryProviderScope<NavKey>.driverEntries(
     }
 
     entry<ReportIncident> {
+        val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+            viewModel.onEvidenceCaptured(saved)
+        }
+
         ReportIncidentScreen(
+            evidence = state.evidence,
+            evidenceBusy = state.evidenceBusy,
+            evidenceError = state.evidenceError,
+            onTakePhoto = {
+                viewModel.prepareEvidenceCapture()?.let { target ->
+                    try {
+                        camera.launch(Uri.parse(target))
+                    } catch (error: ActivityNotFoundException) {
+                        viewModel.onEvidenceCaptureUnavailable()
+                    }
+                }
+            },
+            onRemovePhoto = viewModel::removeEvidence,
             onSubmit = viewModel::reportIncident,
-            onBack = { backStack.removeLastOrNull() }
+            onBack = {
+                viewModel.discardIncidentDraft()
+                backStack.removeLastOrNull()
+            }
         )
     }
 
@@ -172,7 +244,8 @@ fun EntryProviderScope<NavKey>.driverEntries(
                 trip = trip,
                 boardedCount = state.boardedCountFor(trip.id),
                 passengerCount = state.passengersFor(trip.id).size,
-                anomalyCount = state.anomaliesFor(trip.id).size,
+                sensorAnomalyCount = state.anomalyCountFor(trip.id, EventOrigin.SENSOR),
+                demoAnomalyCount = state.anomalyCountFor(trip.id, EventOrigin.DEMO),
                 incidentCount = state.incidentsFor(trip.id).size,
                 onBackHome = ::backToHome
             )
